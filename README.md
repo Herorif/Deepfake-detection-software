@@ -1,33 +1,33 @@
 # Deepfake Detection Software
 
-Local-first desktop tool that combines a FastAPI backend, Electron UI, and placeholders for EfficientNetV2 inference plus Ollama-based threat reasoning. Everything runs on a single workstation for demo and hackathon scenarios.
+Local-first desktop tool that combines a FastAPI backend, React/Electron UI, and placeholders for EfficientNetV2 inference plus Ollama-based threat reasoning. Everything runs on a single workstation for demo and hackathon scenarios.
 
 ## Getting Started
 
-1. **One-click bootstrap (optional)**
-   - Double-click `initialize.bat` to launch FastAPI + Ollama only.
-   - Double-click `run.bat` to launch FastAPI, Ollama, build the `frontend/` React app, and open it inside an Electron window (no browser required).
-2. **Python backend**
+1. **One-click bootstrap (recommended)**
+   - Double-click `initialize.bat` to launch only the FastAPI backend plus Ollama (useful for API-only demos).
+   - Double-click `run.bat` to provision the Python venv, start FastAPI + Ollama, install/build the React UI, and open the compiled app inside an Electron window. No browser required—the Electron shell loads `frontend/build/index.html`.
+2. **Python backend (manual)**
    ```bash
    python -m venv .venv
    .venv\Scripts\activate
    pip install -r backend/requirements.txt
    uvicorn backend.app.main:app --reload
    ```
-3. **React web frontend (browser mode)**
+3. **React web frontend (browser dev mode)**
    ```bash
    cd frontend
    npm install
    npm start
    ```
-   This spins up the CRA dev server on `http://localhost:3000`, talking to the same FastAPI backend + Ollama reasoning APIs.
-4. **Electron desktop shell (app mode)**
+   This starts the Create React App dev server on `http://localhost:3000`, wired to the FastAPI + Ollama stack.
+4. **Electron desktop shell (manual app mode)**
    ```bash
    cd frontend
    npm run build
    npm run electron:shell
    ```
-   The Electron process loads the compiled `frontend/build/index.html`, giving you a native desktop window that mirrors the browser UI.
+   Electron opens the compiled CRA bundle from `frontend/build/`, giving you a native desktop window identical to the browser UI.
 
 ## API Surface
 
@@ -36,30 +36,29 @@ Local-first desktop tool that combines a FastAPI backend, Electron UI, and place
 | `/health`      | GET    | Liveness check. |
 | `/readiness`   | GET    | Confirms model file visibility, temp storage write access, and Ollama availability flag. |
 | `/stats`       | GET    | Returns totals for analyzed files, fake/real breakdown, and timestamp of last run. |
-| `/threats`     | GET    | Lists attack vectors (impersonation, KYC bypass, etc.) surfaced in the UI gallery. |
-| `/analyze`     | POST   | Accepts video/image uploads + optional context, returns dummy EfficientNetV2 verdict, Ollama-style reasoning, and SHA-256 hash. Requires the `X-API-Key` header. |
+| `/threats`     | GET    | Lists attack vectors (impersonation, KYC bypass, etc.) surfaced in the UI. |
+| `/analyze`     | POST   | Accepts video/image uploads + optional context, returns dummy EfficientNet verdict, Ollama reasoning, and SHA-256 hash. Requires `X-API-Key`. |
 
 ### Authentication
 
-- The backend expects `X-API-Key: local-demo-key` by default (configurable via the `DEEPFAKE_API_KEY` environment variable).
-- The desktop renderer automatically sends this header through `backendClient.js`.
+- Backend expects `X-API-Key: local-demo-key` (override via `DEEPFAKE_API_KEY` env var).
+- The React/Electron client automatically includes the header when calling the backend.
 
 ## Security-Focused Enhancements
 
-- Centralized config (`backend/app/config.py`) controls model paths, temp directories, allowed extensions, upload size (200 MB max), and Ollama URL.
-- `utils.py` enforces extension + size checks, computes SHA-256 hashes for each upload, and writes audit logs to `backend/logs/audit.log`.
-- `/readiness` verifies the EfficientNet checkpoint path and temp storage writability; `/stats` feeds the desktop `StatsCard`.
-- `/threats` exposes the same threat definitions used server-side for security reasoning, enabling synchronized UI tooltips.
+- Centralized config (`backend/app/config.py`) controls model paths, temp directories, allowed extensions, upload size (200 MB max), Ollama URL, and API key.
+- `backend/app/utils.py` enforces extension/size checks, computes SHA-256 hashes, and logs each analysis to `backend/logs/audit.log`.
+- `/readiness` validates EfficientNet checkpoint presence + temp storage write access; `/stats` powers the UI’s telemetry card; `/threats` keeps UI + backend attack vectors synchronized.
 
 ## Repository Layout
 
-- `backend/`: FastAPI app with `/analyze`, readiness/stats endpoints, placeholder EfficientNetV2 + Ollama integrations, and audit logging.
-- `frontend/`: Primary React SPA (CRA) plus the embedded Electron shell in `frontend/electron/` for native desktop rendering.
-- `ml/`: Research notebooks for future EfficientNetV2 training.
-- `docs/`: Architecture notes, threat model, and updated demo walkthrough.
+- `backend/`: FastAPI app with `/analyze`, readiness/stats/threat endpoints, placeholder EfficientNetV2 + Ollama integrations, logging utilities, and temp-file helpers.
+- `frontend/`: CRA sources in `src/` plus `frontend/electron/main.js` and Electron scripts for the desktop wrapper.
+- `ml/`: Research notebooks for EfficientNetV2 training experiments.
+- `docs/`: Architecture overview, threat model, and demo script.
 
 ## Roadmap
 
-- [ ] Replace dummy inference with real EfficientNetV2 checkpoint loading from `backend/models/`.
-- [ ] Wire `generate_threat_analysis` to a real Ollama prompt and update `/readiness` to ping the Ollama HTTP API.
-- [ ] Extend audit logging with a query/viewer or ship events to a SIEM-friendly format.
+- [ ] Replace dummy inference with a trained EfficientNetV2 checkpoint in `backend/models/`.
+- [ ] Connect `generate_threat_analysis` to a real Ollama prompt/streaming workflow and update `/readiness` to probe Ollama health.
+- [ ] Extend audit logging with a query viewer or SIEM-friendly exporter.
