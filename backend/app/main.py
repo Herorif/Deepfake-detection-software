@@ -85,12 +85,12 @@ async def threat_definitions() -> list[dict[str, str]]:
     return get_threat_definitions()
 
 
-@app.post("/analyze")
+@app.post("/analyze", response_model=None)
 async def analyze_endpoint(
     file: UploadFile = File(...),
     context: str | None = Form(default=None),
     x_api_key: str | None = Header(default=None, convert_underscores=False),
-) -> JSONResponse | dict:
+) -> JSONResponse:
     """Analyze uploaded media and return dummy inference plus placeholder LLM reasoning."""
     if API_KEY and x_api_key != API_KEY:
         return JSONResponse(status_code=401, content={"error": "invalid_api_key"})
@@ -114,13 +114,15 @@ async def analyze_endpoint(
             attack_vectors=llm_payload.get("attack_vectors", []),
         )
 
-        return {
-            "label": inference_result.get("label", "unknown"),
-            "confidence": inference_result.get("confidence", 0.0),
-            "context": context,
-            "file_hash": saved_file.sha256,
-            "llm": llm_payload,
-        }
+        return JSONResponse(
+            content={
+                "label": inference_result.get("label", "unknown"),
+                "confidence": inference_result.get("confidence", 0.0),
+                "context": context,
+                "file_hash": saved_file.sha256,
+                "llm": llm_payload,
+            }
+        )
     except HTTPException:
         raise
     except (ValueError, FileNotFoundError) as exc:

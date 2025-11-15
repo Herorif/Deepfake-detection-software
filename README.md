@@ -5,7 +5,8 @@ Local-first desktop tool that combines a FastAPI backend, Electron UI, and place
 ## Getting Started
 
 1. **One-click bootstrap (optional)**
-   - Double-click `initialize.bat` (FastAPI + Electron) or `run.bat` (adds `ollama serve` if installed).
+   - Double-click `initialize.bat` to launch FastAPI + Ollama only.
+   - Double-click `run.bat` to launch FastAPI, Ollama, build the `frontend/` React app, and open it inside an Electron window (no browser required).
 2. **Python backend**
    ```bash
    python -m venv .venv
@@ -13,13 +14,20 @@ Local-first desktop tool that combines a FastAPI backend, Electron UI, and place
    pip install -r backend/requirements.txt
    uvicorn backend.app.main:app --reload
    ```
-3. **Electron desktop**
+3. **React web frontend (browser mode)**
    ```bash
-   cd desktop
+   cd frontend
    npm install
-   npm run dev
+   npm start
    ```
-   The `dev` script bundles the React renderer with esbuild and launches Electron (ensure the backend is already running on `http://localhost:8000`).
+   This spins up the CRA dev server on `http://localhost:3000`, talking to the same FastAPI backend + Ollama reasoning APIs.
+4. **Electron desktop shell (app mode)**
+   ```bash
+   cd frontend
+   npm run build
+   npm run electron:shell
+   ```
+   The Electron process loads the compiled `frontend/build/index.html`, giving you a native desktop window that mirrors the browser UI.
 
 ## API Surface
 
@@ -46,7 +54,7 @@ Local-first desktop tool that combines a FastAPI backend, Electron UI, and place
 ## Repository Layout
 
 - `backend/`: FastAPI app with `/analyze`, readiness/stats endpoints, placeholder EfficientNetV2 + Ollama integrations, and audit logging.
-- `desktop/`: Electron shell + React renderer (esbuild) with upload flow, stats card, threat gallery fed by the backend, and SHA-256 display.
+- `frontend/`: Primary React SPA (CRA) plus the embedded Electron shell in `frontend/electron/` for native desktop rendering.
 - `ml/`: Research notebooks for future EfficientNetV2 training.
 - `docs/`: Architecture notes, threat model, and updated demo walkthrough.
 

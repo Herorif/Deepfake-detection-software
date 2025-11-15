@@ -17,8 +17,9 @@ call :start_ollama
 
 if /I "%MODE%"=="backend-only" goto :summary
 
-call :prepare_frontend || goto :fatal
-call :start_frontend || goto :fatal
+call :prepare_react_frontend || goto :fatal
+call :build_react_frontend || goto :fatal
+call :start_frontend_electron || goto :fatal
 
 :summary
 echo.
@@ -27,7 +28,7 @@ echo  Services launching (check new terminal windows):
 echo     - deepfake-backend   : FastAPI at http://127.0.0.1:8000
 echo     - deepfake-ollama    : local LLM (if CLI available)
 if /I not "%MODE%"=="backend-only" (
-    echo     - deepfake-desktop  : Electron/React UI
+    echo     - deepfake-frontend : Electron shell (serving frontend/build)
 )
 echo ============================================================
 echo Keep this launcher open until you confirm all windows started.
@@ -96,24 +97,33 @@ echo [Ollama] Starting ollama serve...
 start "deepfake-ollama" cmd /K "cd /d %PROJECT_ROOT% && ollama serve"
 exit /b 0
 
-:prepare_frontend
-if not exist "desktop\package.json" (
-    echo [Desktop] desktop\\package.json not found. Skipping UI startup.
-    exit /b 0
+:prepare_react_frontend
+if not exist "frontend\package.json" (
+    echo [Frontend] frontend\\package.json not found. Cannot launch UI.
+    exit /b 1
 )
-echo [Desktop] Ensuring npm dependencies (this may take a moment)...
-pushd desktop
-if not exist "node_modules" (
-    npm install || (
-        echo npm install failed. Check the log above.
-        popd
-        exit /b 1
-    )
+echo [Frontend] Installing npm dependencies...
+pushd frontend
+npm install || (
+    echo npm install failed for the React app. Check the log above.
+    popd
+    exit /b 1
 )
 popd
 exit /b 0
 
-:start_frontend
-echo [Desktop] Launching Electron renderer...
-start "deepfake-desktop" cmd /K "cd /d %PROJECT_ROOT%desktop && npm run dev"
+:build_react_frontend
+echo [Frontend] Building production assets...
+pushd frontend
+npm run build || (
+    echo React build failed. Check the log above.
+    popd
+    exit /b 1
+)
+popd
+exit /b 0
+
+:start_frontend_electron
+echo [Frontend] Launching Electron shell...
+start "deepfake-frontend" cmd /K "cd /d %PROJECT_ROOT%frontend && npm run electron:shell"
 exit /b 0
