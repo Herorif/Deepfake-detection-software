@@ -2,14 +2,17 @@ import React from 'react';
 
 const ApiReasoning = ({ reasoning }) => {
   return (
-    <div className="api-reasoning-always">
+    <div className="ai-reasoning-panel">
       <div className="reasoning-header">
-        <h4>AI Model Analysis</h4>
-        <div className="ai-badge">AI Reasoning</div>
+        <div className="header-main">
+          <h3>AI Model Analysis Report</h3>
+          <p>Detailed reasoning and insights from the deepfake detection analysis</p>
+        </div>
+ 
       </div>
       <div className="reasoning-content">
         <div className="reasoning-text">
-          {reasoning || 'The AI model is analyzing the media content for deepfake indicators. Detailed reasoning will appear here once the analysis is complete.'}
+          {reasoning || 'The AI model is processing the media content. Detailed analysis and reasoning will be displayed here once the verification is complete.'}
         </div>
       </div>
     </div>

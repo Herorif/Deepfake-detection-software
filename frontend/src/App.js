@@ -76,76 +76,80 @@ function App() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content - Only Upload & Preview */}
       <main className="glass-main">
-        <div className="main-container">
-          {/* Left Panel - Upload Section */}
-          <div className="left-panel">
-            <div className="panel-content">
-              <div className="section-header">
-                <h2>Upload Media</h2>
-                <p>Select your image or video for authenticity analysis</p>
-              </div>
-              <FileUpload onFileUpload={handleFileUpload} />
-            </div>
-          </div>
-
-          {/* Right Panel - Preview & Results */}
-          <div className="right-panel">
-            <div className="panel-content">
-              <div className="section-header">
-                <h2>Media Analysis</h2>
-                <p>Preview and verify your uploaded content</p>
-              </div>
-              
-              {/* Media Preview with popup container */}
-              <div className="media-preview-container">
-                <MediaPreview file={uploadedFile} type={fileType} />
-                
-                {/* Popup appears over MediaPreview */}
-                {showResult && analysisResult && (
-                  <ResultPopup result={analysisResult} onClose={() => setShowResult(false)} />
-                )}
-              </div>
-              
-              {/* Action Section */}
-              <div className="action-section">
-                <button 
-                  onClick={handleVerify} 
-                  disabled={isLoading || !uploadedFile}
-                  className="verify-btn primary-btn"
-                >
-                  {isLoading ? (
-                    <>
-                      <span className="loading-spinner"></span>
-                      Analyzing Media...
-                    </>
-                  ) : (
-                    <>
-                      <span className="btn-icon">🔍</span>
-                      Verify Authenticity
-                    </>
-                  )}
-                </button>
-                
-                {uploadedFile && (
-                  <button onClick={handleReset} className="secondary-btn">
-                    <span className="btn-icon">🔄</span>
-                    Upload New File
-                  </button>
-                )}
-              </div>
-
-              {/* ApiReasoning shows after popup closes */}
-              {!showResult && analysisResult && (
-                <div className="results-section">
-                  <ApiReasoning reasoning={analysisResult.reasoning} />
+        <div className="main-content-grid">
+          <div className="content-grid">
+            {/* Left Panel - Upload Section */}
+            <div className="left-panel">
+              <div className="panel-content">
+                <div className="section-header">
+                  <h2>Upload Media</h2>
+                  <p>Select your image or video for authenticity analysis</p>
                 </div>
-              )}
+                <FileUpload onFileUpload={handleFileUpload} />
+              </div>
+            </div>
+
+            {/* Right Panel - Preview & Results */}
+            <div className="right-panel">
+              <div className="panel-content">
+                <div className="section-header">
+                  <h2>Media Analysis</h2>
+                  <p>Preview and verify your uploaded content</p>
+                </div>
+                
+                {/* Media Preview with popup container */}
+                <div className="media-preview-container">
+                  <MediaPreview file={uploadedFile} type={fileType} />
+                  
+                  {/* Popup appears over MediaPreview */}
+                  {showResult && analysisResult && (
+                    <ResultPopup result={analysisResult} onClose={() => setShowResult(false)} />
+                  )}
+                </div>
+                
+                {/* Action Section */}
+                <div className="action-section">
+                  <button 
+                    onClick={handleVerify} 
+                    disabled={isLoading || !uploadedFile}
+                    className="verify-btn primary-btn"
+                  >
+                    {isLoading ? (
+                      <>
+                        <span className="loading-spinner"></span>
+                        Analyzing Media...
+                      </>
+                    ) : (
+                      <>
+                        <span className="btn-icon">🔍</span>
+                        Verify Authenticity
+                      </>
+                    )}
+                  </button>
+                  
+                  {uploadedFile && (
+                    <button onClick={handleReset} className="secondary-btn">
+                      <span className="btn-icon">🔄</span>
+                      Upload New File
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* AI Model Reasoning Section - Separate at bottom */}
+      {analysisResult && (
+        <section className="ai-reasoning-section">
+          <div className="reasoning-container">
+            <ApiReasoning reasoning={analysisResult.reasoning} />
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="glass-footer">

@@ -26,7 +26,7 @@ const ResultPopup = ({ result, onClose }) => {
         <div className="popup-verdict">
           <div className={`verdict-badge ${isFake ? 'fake' : 'real'}`}>
             <div className="badge-icon">
-              {isFake ? '⚠️' : '✅'}
+              {isFake ? '' : ''}
             </div>
             <div className="badge-text">
               <span className="verdict-title">{isFake ? 'FAKE' : 'REAL'}</span>
