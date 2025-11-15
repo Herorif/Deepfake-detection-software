@@ -6,6 +6,7 @@ import ApiReasoning from './components/ApiReasoning';
 import { analyzeMedia } from './services/api';
 import './styles/App.css';
 
+
 function App() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [fileType, setFileType] = useState(null);
@@ -72,7 +73,10 @@ function App() {
         <div className="header-container">
           <div className="glass-logo">
             <div className="logo-shine"></div>
-            <div className="logo-icon">🛡️</div>
+            <div className="logo-image">
+              <img src='/images/cj-logo.png' alt="Cyberjaya Deepfake Detection Logo" />
+            </div>
+            
             <div className="logo-text">
               <h1>CYBERJAYA DEEPFAKE DETECTION</h1>
               <span>AI-Powered Deepfake Detection Software</span>
@@ -84,8 +88,8 @@ function App() {
             onClick={toggleGuidelines}
             className="guidelines-btn"
           >
-            <span className="btn-icon">📋</span>
-            Upload Guidelines
+            <span className="btn-icon">ℹ️</span>
+            Help
           </button>
         </div>
       </header>
