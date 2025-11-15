@@ -114,28 +114,6 @@ const FileUpload = ({ onFileUpload }) => {
           style={{ display: 'none' }}
         />
       </div>
-
-      {/* Upload Guidelines */}
-      <div className="upload-guidelines">
-        <div className="guidelines-header">
-          <span className="guidelines-icon">💡</span>
-          <h5>Upload Guidelines</h5>
-        </div>
-        <div className="guidelines-list">
-          <div className="guideline-item">
-            <span className="check-icon">✓</span>
-            <span>Maximum file size: Images 50MB, Videos 100MB</span>
-          </div>
-          <div className="guideline-item">
-            <span className="check-icon">✓</span>
-            <span>Ensure good lighting and clear visibility</span>
-          </div>
-          <div className="guideline-item">
-            <span className="check-icon">✓</span>
-            <span>For best results, use high-quality files</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
