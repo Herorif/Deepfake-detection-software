@@ -1,0 +1,3 @@
+﻿# Aggregate requirements file to keep tooling happy
+-r backend/requirements.txt
+

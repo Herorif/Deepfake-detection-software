@@ -1,0 +1,20 @@
+﻿{
+  "name": "deepfake-detection-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "build:renderer": "esbuild renderer/src/main.jsx --bundle --outfile=build/bundle.js --loader:.js=jsx --loader:.jsx=jsx --platform=browser --target=chrome114 --jsx=automatic --sourcemap",
+    "start": "electron .",
+    "dev": "npm run build:renderer && electron ."
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "electron": "^28.2.0",
+    "esbuild": "^0.21.5"
+  }
+}
+

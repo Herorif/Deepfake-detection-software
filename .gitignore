@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Project-specific ignores
+desktop/node_modules/
+desktop/build/bundle.js
+desktop/build/bundle.js.map
+backend/temp/
+backend/.pytest_cache/
