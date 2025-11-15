@@ -133,6 +133,3 @@ async def analyze_endpoint(
                 "detail": str(exc),
             },
         )
-
-
-# TODO: wire up background cleanup for temp files once inference is finalized.
