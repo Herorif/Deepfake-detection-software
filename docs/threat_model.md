@@ -10,3 +10,5 @@ The platform focuses on local detection plus analyst workflows for the following
 6. **Blackmail** - Synthetic compromising material used for extortion.
 7. **Misinformation** - Rapid propagation of fake media to sway public opinion.
 
+These definitions power the `/threats` API so the desktop UI and backend reasoning stay in sync.
+

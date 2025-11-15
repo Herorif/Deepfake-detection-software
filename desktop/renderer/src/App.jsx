@@ -1,8 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import UploadPanel from './components/UploadPanel.jsx';
 import ResultCard from './components/ResultCard.jsx';
 import ThreatPanel from './components/ThreatPanel.jsx';
 import ThreatGallery from './components/ThreatGallery.jsx';
+import StatsCard from './components/StatsCard.jsx';
 
 const shellStyle = {
   padding: '2rem',
@@ -41,8 +42,9 @@ export default function App() {
     <div style={shellStyle}>
       <header style={headerStyle}>Deepfake Detection Desktop</header>
       <p style={{ color: '#cbd5f5', maxWidth: '720px' }}>
-        Upload video, audio, or still images to run local EfficientNetV2-based classification (placeholder) and
-        receive an Ollama-backed threat reasoning summary (also placeholder) entirely on your workstation.
+        Upload local video or still imagery to run EfficientNetV2-style classification (placeholder) and receive an
+        Ollama-backed threat reasoning summary (placeholder). All processing, audit logging, and stats tracking stay
+        on this workstation.
       </p>
       <UploadPanel
         status={status}
@@ -54,6 +56,7 @@ export default function App() {
         <div style={{ color: '#f87171', marginTop: '1rem' }}>[!] {errorMessage}</div>
       )}
       <section style={gridStyle}>
+        <StatsCard />
         <ResultCard data={analysis} status={status} />
         <ThreatPanel llm={analysis?.llm} />
       </section>
@@ -61,4 +64,3 @@ export default function App() {
     </div>
   );
 }
-

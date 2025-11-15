@@ -95,7 +95,7 @@ export default function UploadPanel({ status, onStatusChange, onComplete, onErro
         id='file-input'
         style={inputStyle}
         type='file'
-        accept='.mp4,.mov,.avi,.mkv,.mp3,.wav,.png,.jpg,.jpeg'
+        accept='.mp4,.mov,.avi,.mkv,.png,.jpg,.jpeg'
         onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         disabled={disabled}
       />
