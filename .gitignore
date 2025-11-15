@@ -211,3 +211,4 @@ desktop/build/bundle.js
 desktop/build/bundle.js.map
 backend/temp/
 backend/.pytest_cache/
+backend/logs/*.log

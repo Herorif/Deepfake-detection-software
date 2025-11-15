@@ -41,8 +41,10 @@ export default function ResultCard({ data, status }) {
       <p style={statStyle}>{data.label}</p>
       <p style={{ color: '#22d3ee', fontSize: '1.25rem' }}>{formatConfidence(data.confidence)} confidence</p>
       <p style={{ color: '#cbd5f5' }}>Context: {data.context || 'None provided'}</p>
+      {data.file_hash && (
+        <p style={{ color: '#64748b', wordBreak: 'break-all' }}>SHA-256: {data.file_hash}</p>
+      )}
       {status === 'analyzing' && <p style={{ color: '#facc15' }}>Processing...</p>}
     </div>
   );
 }
-

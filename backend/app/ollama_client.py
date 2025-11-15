@@ -1,8 +1,9 @@
-﻿"""Client to interact with a local Ollama deployment (placeholder)."""
+"""Client to interact with a local Ollama deployment (placeholder)."""
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
+from .config import OLLAMA_URL
 from .security_mapping import map_security_implications
 
 
@@ -14,7 +15,7 @@ def generate_threat_analysis(
 ) -> Dict[str, Any]:
     """Return dummy reasoning payload until the Ollama workflow is wired up.
 
-    TODO: invoke ollama run or an HTTP endpoint exposed by Ollama to get real reasoning.
+    TODO: invoke `ollama run` or an HTTP endpoint exposed by Ollama to get real reasoning.
     """
 
     attack_vectors = map_security_implications(label or "unknown", context)
@@ -37,5 +38,5 @@ def generate_threat_analysis(
         "confidence": confidence,
         "label": label,
         "context": context,
+        "ollama_endpoint": OLLAMA_URL,
     }
-
