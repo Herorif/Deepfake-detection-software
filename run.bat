@@ -1,12 +1,21 @@
 @echo off
 setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
+:: Request admin privileges if not already elevated
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [Launcher] Requesting administrator privileges...
+    powershell -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+
 REM ---------------------------------------------------------------------------
 REM  Deepfake Detection - Full Stack Launcher (Backend + Desktop + Ollama)
 REM ---------------------------------------------------------------------------
 
 set "PROJECT_ROOT=%~dp0"
 set "MODE=%~1"
+set "FRONTEND_DIR=%PROJECT_ROOT%frontend"
 
 cd /d "%PROJECT_ROOT%" || goto :fatal
 
@@ -85,7 +94,7 @@ exit /b 0
 
 :start_backend
 echo [Backend] Launching FastAPI (uvicorn)...
-start "deepfake-backend" cmd /K "cd /d %PROJECT_ROOT% && call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload"
+start "deepfake-backend" cmd /K "cd /d ""%PROJECT_ROOT%"" && call .venv\Scripts\activate.bat && uvicorn backend.app.main:app --reload"
 exit /b 0
 
 :start_ollama
@@ -93,8 +102,24 @@ where ollama >nul 2>&1 || (
     echo [Ollama] CLI not detected. Install from https://ollama.com/download to enable local reasoning.
     exit /b 0
 )
+call :ensure_llama_model
 echo [Ollama] Starting ollama serve...
-start "deepfake-ollama" cmd /K "cd /d %PROJECT_ROOT% && ollama serve"
+start "deepfake-ollama" cmd /K "cd /d ""%PROJECT_ROOT%"" && ollama serve"
+exit /b 0
+
+:ensure_llama_model
+echo [Ollama] Ensuring llama3:8b model assets are available...
+set "LLAMA_READY="
+for /f "delims=" %%M in ('ollama list ^| findstr /I "llama3:8b"') do set "LLAMA_READY=1"
+if defined LLAMA_READY (
+    echo [Ollama] llama3:8b already present locally.
+) else (
+    echo [Ollama] Pulling llama3:8b (this may take a few minutes on first run)...
+    ollama pull llama3:8b || (
+        echo [Ollama] Warning: automatic pull failed. Run "ollama pull llama3:8b" manually once the serve window is up.
+        exit /b 0
+    )
+)
 exit /b 0
 
 :prepare_react_frontend
@@ -125,5 +150,5 @@ exit /b 0
 
 :start_frontend_electron
 echo [Frontend] Launching Electron shell...
-start "deepfake-frontend" cmd /K "cd /d %PROJECT_ROOT%frontend && npm run electron:shell"
+start "deepfake-frontend" cmd /K "cd /d ""%FRONTEND_DIR%"" && npm run electron:shell"
 exit /b 0

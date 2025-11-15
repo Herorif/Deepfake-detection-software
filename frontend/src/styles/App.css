@@ -1541,7 +1541,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(15, 23, 42, 0.75);
   backdrop-filter: blur(10px);
   display: flex;
   justify-content: center;
@@ -1551,16 +1551,16 @@ body {
 }
 
 .guidelines-popup {
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(40px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 2rem;
+  background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  padding: 2.25rem;
   width: 90%;
-  max-width: 500px;
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  max-width: 520px;
+  box-shadow:
+    0 25px 50px rgba(15, 23, 42, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
   animation: slideDown 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -1576,20 +1576,71 @@ body {
   align-items: flex-start;
   gap: 1rem;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(148, 163, 184, 0.15);
   border-radius: 8px;
-  border-left: 3px solid #10b981;
+  border-left: 3px solid #2563eb;
 }
 
 .check-icon {
-  color: #10b981;
+  color: #2563eb;
   font-weight: bold;
   font-size: 1rem;
   margin-top: 0.1rem;
 }
 
 .guideline-item span:last-child {
-  color: rgba(255, 255, 255, 0.9);
+  color: #0f172a;
   font-size: 0.9rem;
   line-height: 1.4;
 }
+
+/* ===== Reasoning & Preview Enhancements ===== */
+.header-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.reasoning-pill {
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #f8fafc;
+}
+
+.verdict-pill {
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.risk-pill-high {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.risk-pill-medium {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.risk-pill-low {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.score-summary {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+
+.video-player {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: #0f172a;
+  max-height: 360px;
+}
+

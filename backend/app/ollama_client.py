@@ -1,12 +1,17 @@
-"""Client to interact with a local Ollama deployment (placeholder)."""
+﻿"""Client to interact with a local Ollama deployment for reasoning."""
 from __future__ import annotations
 
+import json
 from typing import Any, Dict, Optional
 
 import requests
 
-from .config import OLLAMA_URL
+from .config import OLLAMA_MODEL, OLLAMA_URL
 from .security_mapping import map_security_implications
+
+SYSTEM_PROMPT = """You are an expert deepfake analysis assistant.\n\nYou will receive:\n- Model probabilities from one or more deepfake detectors.\n- A list of detected visual or temporal artefacts.\n\nYour job is ONLY to:\n1) Explain why the media is likely fake, likely real, or uncertain, with a focus on which artefacts or risk factors are present.\n2) Convert the numeric scores into a human-readable risk level: \"low\", \"medium\", or \"high\", and a final verdict:\n   - \"likely_fake\"\n   - \"likely_real\"\n   - \"uncertain\"\n\nGuidelines:\n- Consider agreement between models. If models strongly disagree, lean toward \"uncertain\" or \"medium\" risk.\n- If fake probabilities are very high (e.g., > 0.8 on multiple models) and artefacts are strong, use \"high\" risk and \"likely_fake\".\n- If fake probabilities are low and no artefacts are present, use \"low\" risk and \"likely_real\".\n- If results are borderline, noisy, or artefacts are weak, choose \"medium\" risk and possibly \"uncertain\".\n\nALWAYS respond in valid JSON with this schema:\n\n{\n  \"final_verdict\": \"likely_fake | likely_real | uncertain\",\n  \"risk_level\": \"low | medium | high\",\n  \"score_summary\": \"Short plain-language description of how the scores compare.\",\n  \"artefact_explanation\": [\n    \"Explain each relevant artefact or risk factor in simple terms.\"\n  ],\n  \"overall_explanation\": \"1–3 sentences combining scores and artefacts into a clear explanation.\"\n}\n"""
+
+CHAT_ENDPOINT = f"{OLLAMA_URL.rstrip('/')}/api/chat"
 
 
 def generate_threat_analysis(
@@ -14,73 +19,60 @@ def generate_threat_analysis(
     confidence: float,
     context: Optional[str],
     filename: Optional[str] = None,
+    analysis_data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Return structured reasoning payload, falling back to static data if Ollama is offline."""
+    """Return structured reasoning payload powered by Ollama."""
 
     attack_vectors = map_security_implications(label or "unknown", context)
-    prompt = build_prompt(label, confidence, context, attack_vectors)
+    analysis_payload = analysis_data or {}
 
-    llm_response: Dict[str, Any] | None = None
     try:
-        body = {"model": "llama2", "prompt": prompt, "stream": False}
-        response = requests.post(OLLAMA_URL, json=body, timeout=30)
+        payload = {
+            "model": OLLAMA_MODEL,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": (
+                        "Here is the analysis data from our detectors.\n"
+                        "Return ONLY valid JSON as specified.\n\n"
+                        f"{json.dumps(analysis_payload, ensure_ascii=False)}"
+                    ),
+                },
+            ],
+            "stream": False,
+        }
+        response = requests.post(CHAT_ENDPOINT, json=payload, timeout=60)
         response.raise_for_status()
-        llm_response = response.json()
-    except requests.RequestException:
-        llm_response = None
+        content = response.json()["message"]["content"]
+        start = content.find("{")
+        end = content.rfind("}")
+        parsed = json.loads(content[start : end + 1])
+    except Exception:
+        parsed = {
+            "final_verdict": label.lower() if label else "uncertain",
+            "risk_level": "high" if (confidence or 0) > 0.75 else "medium",
+            "score_summary": "Ollama reasoning unavailable; falling back to heuristic summary.",
+            "artefact_explanation": [
+                vector["description"] for vector in attack_vectors[:3]
+            ],
+            "overall_explanation": "Heuristic reasoning fallback in use.",
+        }
 
-    return {
-        "summary": extract_summary(llm_response) or "Dummy analysis",
-        "filename": filename,
-        "attack_vectors": attack_vectors
-        or [
-            {
-                "name": "impersonation",
-                "description": "dummy",
-                "impact": "high",
-            }
-        ],
-        "recommendations": extract_recommendations(llm_response)
-        or [
-            "dummy recommendation",
-            "TODO: leverage Ollama for richer defensive actions",
-        ],
-        "confidence": confidence,
-        "label": label,
-        "context": context,
-        "ollama_endpoint": OLLAMA_URL,
-        "raw_llm_response": llm_response,
-    }
+    raw_llm_payload = parsed.copy()
+    parsed.setdefault("artefact_explanation", [v["description"] for v in attack_vectors])
+    parsed.setdefault("overall_explanation", "Heuristic reasoning fallback in use.")
 
-
-def build_prompt(label: str, confidence: float, context: Optional[str], attack_vectors: list[dict[str, str]]) -> str:
-    """Generate a lightweight prompt for the local Ollama model."""
-    context_line = context or "general"
-    vector_descriptions = "\n".join(
-        f"- {vector['name']}: {vector['description']} (impact: {vector['impact']})" for vector in attack_vectors
+    parsed.update(
+        {
+            "filename": filename,
+            "attack_vectors": attack_vectors,
+            "confidence": confidence,
+            "label": label,
+            "context": context,
+            "ollama_endpoint": CHAT_ENDPOINT,
+            "analysis_data": analysis_payload,
+            "raw_llm_response": raw_llm_payload,
+        }
     )
-    return (
-        "You are a cybersecurity analyst assistant. Summarize key threats for SOC operators.\n"
-        f"Model verdict: {label} (confidence: {confidence}).\n"
-        f"Operational context: {context_line}.\n"
-        "Attack vectors to consider:\n"
-        f"{vector_descriptions}\n"
-        "Respond with JSON containing `summary` and `recommendations` array."
-    )
-
-
-def extract_summary(llm_response: Optional[Dict[str, Any]]) -> Optional[str]:
-    """Parse the summary returned by Ollama."""
-    if not llm_response:
-        return None
-    return llm_response.get("summary") or llm_response.get("response")
-
-
-def extract_recommendations(llm_response: Optional[Dict[str, Any]]) -> Optional[list[str]]:
-    """Parse recommendations array from the Ollama response."""
-    if not llm_response:
-        return None
-    recommendations = llm_response.get("recommendations")
-    if isinstance(recommendations, list):
-        return recommendations
-    return None
+    return parsed

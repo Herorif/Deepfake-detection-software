@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import FileUpload from './components/FileUpload';
 import MediaPreview from './components/MediaPreview';
 import ResultPopup from './components/ResultPopup';
@@ -6,45 +6,91 @@ import ApiReasoning from './components/ApiReasoning';
 import { analyzeMedia } from './services/api';
 import './styles/App.css';
 
+const GUIDELINES = [
+  {
+    title: 'Local-Only Pipeline',
+    text: 'Media stays on-device: EfficientNetV2 handles detection while Ollama llama3:8b crafts SOC-ready reasoning.',
+  },
+  {
+    title: 'File Hygiene',
+    text: 'Use original exports instead of screenshots of screenshots and keep uploads under 200MB for best fidelity.',
+  },
+  {
+    title: 'Image & Video Capture',
+    text: 'Center the subject, keep faces unobstructed, and trim video clips to ~30 seconds for rapid verdicts.',
+  },
+  {
+    title: 'Audit Trail',
+    text: 'Each run logs a SHA-256 hash, verdict, and attack vectors in backend/logs/audit.log for forensics.',
+  },
+  {
+    title: 'Security Tips',
+    text: 'Escalate impersonation attempts, verify out-of-band, and quarantine suspect media before sharing.',
+  },
+];
 
 function App() {
   const [uploadedFile, setUploadedFile] = useState(null);
-  const [fileType, setFileType] = useState(null);
+  const [uploadedMediaType, setUploadedMediaType] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
   const [showGuidelines, setShowGuidelines] = useState(false);
+  const logoSrc = `${process.env.PUBLIC_URL}/images/cj-logo.png`;
 
-  const handleFileUpload = (file, type) => {
+  const handleFileUpload = (file, type = 'image') => {
     setUploadedFile(file);
-    setFileType(type);
+    setUploadedMediaType(type);
     setAnalysisResult(null);
-    setShowResult(false);
+    setErrorMessage(null);
   };
 
   const handleVerify = async () => {
     if (!uploadedFile) {
-      alert('Please upload an image or video first!');
+      alert('Please upload media before running analysis.');
       return;
     }
 
     setIsLoading(true);
+    setErrorMessage(null);
+
     try {
       const formData = new FormData();
       formData.append('file', uploadedFile);
-      formData.append('type', fileType);
-
+      formData.append('media_type', uploadedMediaType || 'image');
       const result = await analyzeMedia(formData);
-      setAnalysisResult(result);
-      setShowResult(true);
+      const llm = result?.llm || {};
+      setAnalysisResult({
+        label: result.label,
+        confidence: result.confidence,
+        probabilities: result.probabilities,
+        fileHash: result.file_hash,
+        model: result.model,
+        mediaType: result.media_type || uploadedMediaType || 'image',
+        artifacts: result.artifacts,
+        summary: llm.overall_explanation || llm.summary,
+        attackVectors: llm.attack_vectors ?? [],
+        recommendations: llm.recommendations ?? [],
+        riskLevel: llm.risk_level,
+        finalVerdict: llm.final_verdict,
+        scoreSummary: llm.score_summary,
+        llm,
+      });
     } catch (error) {
       console.error('Verification failed:', error);
+      const message =
+        error.response?.data?.error || 'Verification failed. Ensure the backend is running and try again.';
+      setErrorMessage(message);
       setAnalysisResult({
-        is_fake: false,
+        label: 'unknown',
         confidence: 0,
-        reasoning: 'Verification failed. Please try again.'
+        probabilities: undefined,
+        summary: message,
+        attackVectors: [],
+        recommendations: [],
+        fileHash: null,
+        mediaType: uploadedMediaType || 'image',
       });
-      setShowResult(true);
     } finally {
       setIsLoading(false);
     }
@@ -52,130 +98,72 @@ function App() {
 
   const handleReset = () => {
     setUploadedFile(null);
-    setFileType(null);
+    setUploadedMediaType(null);
     setAnalysisResult(null);
-    setShowResult(false);
+    setErrorMessage(null);
   };
 
-  const toggleGuidelines = () => {
-    setShowGuidelines(!showGuidelines);
-  };
+  const mediaPreviewType = useMemo(() => {
+    if (!uploadedFile) return null;
+    return uploadedMediaType || 'image';
+  }, [uploadedFile, uploadedMediaType]);
 
   return (
     <div className="liquid-glass-app">
-      {/* Animated background bubbles */}
       <div className="app-bubble bubble-1"></div>
       <div className="app-bubble bubble-2"></div>
       <div className="app-bubble bubble-3"></div>
-      
-      {/* Header */}
+
       <header className="glass-header">
         <div className="header-container">
           <div className="glass-logo">
             <div className="logo-shine"></div>
             <div className="logo-image">
-              <img src='/images/cj-logo.png' alt="Cyberjaya Deepfake Detection Logo" />
+              <img src={logoSrc} alt="Cyberjaya Deepfake Detection Logo" />
             </div>
-            
             <div className="logo-text">
               <h1>CYBERJAYA DEEPFAKE DETECTION</h1>
               <span>AI-Powered Deepfake Detection Software</span>
             </div>
           </div>
-          
-          {/* Guidelines Button - Top Right */}
-          <button 
-            onClick={toggleGuidelines}
-            className="guidelines-btn"
-          >
-            <span className="btn-icon">ℹ️</span>
-            Help
+          <button className="guidelines-btn" onClick={() => setShowGuidelines(true)} aria-label="Open help overlay">
+            Help & Info
           </button>
         </div>
       </header>
 
-      {/* Guidelines Popup */}
-      {showGuidelines && (
-        <div className="guidelines-popup-overlay">
-          <div className="guidelines-popup">
-            <div className="popup-header">
-              <div className="header-content">
-                <h3>Upload Guidelines</h3>
-                <p>Follow these guidelines for best results</p>
-              </div>
-              <button 
-                onClick={toggleGuidelines}
-                className="transparent-close-btn"
-              >
-                ×
-              </button>
-            </div>
-            
-            <div className="guidelines-content">
-              <div className="guideline-item">
-                <span className="check-icon">✓</span>
-                <span><strong>Maximum file size:</strong> Images 50MB, Videos 100MB</span>
-              </div>
-              <div className="guideline-item">
-                <span className="check-icon">✓</span>
-                <span><strong>Ensure good lighting</strong> and clear visibility</span>
-              </div>
-              <div className="guideline-item">
-                <span className="check-icon">✓</span>
-                <span><strong>For best results,</strong> use high-quality files</span>
-              </div>
-              <div className="guideline-item">
-                <span className="check-icon">✓</span>
-                <span><strong>Supported formats:</strong> JPG, PNG, MP4, MOV, AVI</span>
-              </div>
-              <div className="guideline-item">
-                <span className="check-icon">✓</span>
-                <span><strong>Face should be clearly visible</strong> and well-lit</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Content */}
       <main className="glass-main">
         <div className="main-container">
-          {/* Left Panel - Upload Section */}
           <div className="left-panel">
             <div className="panel-content">
               <div className="section-header">
                 <h2>Upload Media</h2>
-                <p>Select your image or video for authenticity analysis</p>
+                <p>Images leverage EfficientNetV2. Videos sample frames for the same detector.</p>
               </div>
               <FileUpload onFileUpload={handleFileUpload} />
             </div>
           </div>
 
-          {/* Right Panel - Preview & Results */}
           <div className="right-panel">
             <div className="panel-content">
               <div className="section-header">
                 <h2>Media Analysis</h2>
-                <p>Preview and verify your uploaded content</p>
+                <p>Preview your upload, view verdicts, and read the LLM reasoning in one console.</p>
               </div>
-              
-              {/* Media Preview with popup container */}
+
               <div className="media-preview-container">
-                <MediaPreview file={uploadedFile} type={fileType} />
-                
-                {/* Popup appears over MediaPreview */}
-                {showResult && analysisResult && (
-                  <ResultPopup result={analysisResult} onClose={() => setShowResult(false)} />
+                <MediaPreview file={uploadedFile} type={mediaPreviewType} />
+                {analysisResult && (
+                  <ResultPopup
+                    result={analysisResult}
+                    mediaType={mediaPreviewType}
+                    onClose={() => setAnalysisResult(null)}
+                  />
                 )}
               </div>
-              
-              {/* Action Section */}
+
               <div className="action-section">
-                <button 
-                  onClick={handleVerify} 
-                  disabled={isLoading || !uploadedFile}
-                  className="verify-btn primary-btn"
-                >
+                <button onClick={handleVerify} disabled={isLoading || !uploadedFile} className="verify-btn primary-btn">
                   {isLoading ? (
                     <>
                       <span className="loading-spinner"></span>
@@ -183,24 +171,36 @@ function App() {
                     </>
                   ) : (
                     <>
-                      <span className="btn-icon">🔍</span>
+                      <span className="btn-icon" aria-hidden="true">
+                        ⚡
+                      </span>
                       Verify Authenticity
                     </>
                   )}
                 </button>
-                
+
                 {uploadedFile && (
                   <button onClick={handleReset} className="secondary-btn">
-                    <span className="btn-icon">🔄</span>
+                    <span className="btn-icon" aria-hidden="true">
+                      ↺
+                    </span>
                     Upload New File
                   </button>
                 )}
               </div>
 
-              {/* ApiReasoning shows after popup closes */}
-              {!showResult && analysisResult && (
+              {errorMessage && <p className="error-text">{errorMessage}</p>}
+
+              {analysisResult && (
                 <div className="results-section">
-                  <ApiReasoning reasoning={analysisResult.reasoning} />
+                  <ApiReasoning
+                    summary={analysisResult.summary}
+                    attackVectors={analysisResult.attackVectors}
+                    recommendations={analysisResult.recommendations}
+                    riskLevel={analysisResult.riskLevel}
+                    finalVerdict={analysisResult.finalVerdict}
+                    scoreSummary={analysisResult.scoreSummary}
+                  />
                 </div>
               )}
             </div>
@@ -208,7 +208,36 @@ function App() {
         </div>
       </main>
 
-      {/* Footer */}
+      {showGuidelines && (
+        <div className="guidelines-popup-overlay" role="dialog" aria-modal="true">
+          <div className="guidelines-popup">
+            <div className="popup-header">
+              <div className="header-content">
+                <h3>Field Guidance</h3>
+                <p>Follow these steps to keep investigations defensible.</p>
+              </div>
+              <button
+                className="transparent-close-btn"
+                onClick={() => setShowGuidelines(false)}
+                aria-label="Close help overlay"
+              >
+                ×
+              </button>
+            </div>
+            <div className="guidelines-content">
+              {GUIDELINES.map((item) => (
+                <div className="guideline-item" key={item.title}>
+                  <span className="check-icon">•</span>
+                  <span>
+                    <strong>{item.title}:</strong> {item.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="glass-footer">
         <div className="footer-bottom">
           <p>&copy; Cyberjaya - Secure NEX Hackathon 2025</p>

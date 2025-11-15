@@ -14,10 +14,12 @@ from fastapi import UploadFile
 
 from .config import (
     ALLOWED_EXTENSIONS,
+    IMAGE_EXTENSIONS,
     LOG_DIR,
     MAX_FILE_BYTES,
     MAX_FILE_MB,
     TEMP_DIR,
+    VIDEO_EXTENSIONS,
 )
 
 AUDIT_LOG_PATH = LOG_DIR / "audit.log"
@@ -31,6 +33,7 @@ class SavedFile:
     path: Path
     sha256: str
     size_bytes: int
+    media_type: str
 
 
 def get_extension(filename: str) -> str:
@@ -43,6 +46,14 @@ def ensure_supported_extension(filename: str) -> None:
         raise ValueError(
             f"Unsupported file extension: {extension}. Allowed types: {sorted(ALLOWED_EXTENSIONS)}"
         )
+
+
+def detect_media_type(extension: str) -> str:
+    if extension in IMAGE_EXTENSIONS:
+        return "image"
+    if extension in VIDEO_EXTENSIONS:
+        return "video"
+    raise ValueError(f"Unsupported media type for extension {extension}")
 
 
 def ensure_file_size_within_limit(file: UploadFile) -> int:
@@ -60,11 +71,14 @@ def ensure_file_size_within_limit(file: UploadFile) -> int:
 
 def save_temp_file(file: UploadFile) -> SavedFile:
     """Persist the incoming upload to the TEMP_DIR for downstream processing."""
-    ensure_supported_extension(file.filename or "upload")
+    filename = file.filename or "upload"
+    ensure_supported_extension(filename)
     size_bytes = ensure_file_size_within_limit(file)
+    extension = get_extension(filename)
+    media_type = detect_media_type(extension)
 
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
-    destination = TEMP_DIR / f"{uuid4().hex}{get_extension(file.filename)}"
+    destination = TEMP_DIR / f"{uuid4().hex}{extension}"
     file.file.seek(0)
 
     digest = hashlib.sha256()
@@ -76,7 +90,7 @@ def save_temp_file(file: UploadFile) -> SavedFile:
             buffer.write(chunk)
             digest.update(chunk)
     file.file.seek(0)
-    return SavedFile(path=destination, sha256=digest.hexdigest(), size_bytes=size_bytes)
+    return SavedFile(path=destination, sha256=digest.hexdigest(), size_bytes=size_bytes, media_type=media_type)
 
 
 def temp_storage_ready() -> bool:

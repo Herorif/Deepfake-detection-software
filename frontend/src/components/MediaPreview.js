@@ -1,106 +1,111 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+
+const PLACEHOLDER_FEATURES = [
+  { icon: '🛡️', label: 'AI-Powered Analysis' },
+  { icon: '⚡', label: 'Rapid Verification' },
+  { icon: '🔒', label: 'Local-Only Processing' },
+];
 
 const MediaPreview = ({ file, type }) => {
   const [videoThumbnail, setVideoThumbnail] = useState(null);
-  const videoRef = useRef(null);
 
-  // Generate thumbnail from video
-  const generateThumbnail = (videoFile) => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video');
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      
-      video.src = URL.createObjectURL(videoFile);
-      video.addEventListener('loadeddata', () => {
-        video.currentTime = 1; // Capture at 1 second
-      });
-      
-      video.addEventListener('seeked', () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => {
-          resolve(URL.createObjectURL(blob));
-          URL.revokeObjectURL(video.src);
-        }, 'image/jpeg');
-      });
-    });
-  };
+  const fileUrl = useMemo(() => {
+    if (!file) return null;
+    return URL.createObjectURL(file);
+  }, [file]);
 
-  // Handle video file to generate thumbnail
-  React.useEffect(() => {
-    if (file && type === 'video') {
-      generateThumbnail(file).then(thumbnail => {
-        setVideoThumbnail(thumbnail);
-      });
-    } else {
+  useEffect(() => {
+    return () => {
+      if (fileUrl) {
+        URL.revokeObjectURL(fileUrl);
+      }
+    };
+  }, [fileUrl]);
+
+  useEffect(() => {
+    if (!file || type !== 'video' || !fileUrl) {
       setVideoThumbnail(null);
+      return undefined;
     }
-  }, [file, type]);
+
+    let thumbnailUrl = null;
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.src = fileUrl;
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(1, video.duration || 0.1);
+    };
+    video.onseeked = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (thumbnailUrl) {
+          URL.revokeObjectURL(thumbnailUrl);
+        }
+        if (blob) {
+          thumbnailUrl = URL.createObjectURL(blob);
+          setVideoThumbnail(thumbnailUrl);
+        }
+      }, 'image/jpeg');
+    };
+
+    return () => {
+      if (thumbnailUrl) {
+        URL.revokeObjectURL(thumbnailUrl);
+      }
+    };
+  }, [file, type, fileUrl]);
 
   if (!file) {
     return (
       <div className="media-preview">
         <div className="preview-placeholder">
-          <div className="placeholder-icon">📁</div>
+          <div className="placeholder-icon" aria-hidden="true">
+            📁
+          </div>
           <h3>No Media Selected</h3>
           <p>Upload an image or video to begin analysis</p>
           <div className="placeholder-features">
-            <div className="feature-item">
-              <span className="feature-icon">🔍</span>
-              <span>AI-Powered Analysis</span>
-            </div>
-            <div className="feature-item">
-              <span className="feature-icon">⚡</span>
-              <span>Fast Verification</span>
-            </div>
-            <div className="feature-item">
-              <span className="feature-icon">🛡️</span>
-              <span>Secure Processing</span>
-            </div>
+            {PLACEHOLDER_FEATURES.map((feature) => (
+              <div className="feature-item" key={feature.label}>
+                <span className="feature-icon" aria-hidden="true">
+                  {feature.icon}
+                </span>
+                <span>{feature.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
     );
   }
 
-  const fileUrl = URL.createObjectURL(file);
-
   return (
     <div className="media-preview">
       <div className="preview-header">
         <h3>Media Preview</h3>
-        <div className="file-badge">{type.toUpperCase()}</div>
+        {type && <div className="file-badge">{type.toUpperCase()}</div>}
       </div>
-      
+
       <div className="preview-container">
-        {type === 'image' ? (
-          <div className="image-preview">
-            <img 
-              src={fileUrl} 
-              alt="Uploaded for analysis" 
-              className="preview-image"
-              onLoad={() => URL.revokeObjectURL(fileUrl)}
-            />
+        {type === 'video' ? (
+          <div className="video-preview">
+            {videoThumbnail ? (
+              <img src={videoThumbnail} alt="Video thumbnail" className="video-thumbnail" />
+            ) : (
+              <video src={fileUrl} controls className="video-player" />
+            )}
           </div>
         ) : (
-          <div className="video-preview">
-            <div className="video-thumbnail-container">
-              <img 
-                src={videoThumbnail || fileUrl} 
-                alt="Video thumbnail" 
-                className="video-thumbnail"
-                onLoad={() => {
-                  if (!videoThumbnail) URL.revokeObjectURL(fileUrl);
-                }}
-              />
-
-            </div>
+          <div className="image-preview">
+            <img src={fileUrl} alt="Uploaded for analysis" className="preview-image" />
           </div>
         )}
       </div>
-      
+
       <div className="file-details">
         <div className="detail-item">
           <label>File Name:</label>
@@ -108,7 +113,7 @@ const MediaPreview = ({ file, type }) => {
         </div>
         <div className="detail-item">
           <label>File Type:</label>
-          <span>{type}</span>
+          <span>{(type || file.type || 'unknown').toUpperCase()}</span>
         </div>
         <div className="detail-item">
           <label>File Size:</label>

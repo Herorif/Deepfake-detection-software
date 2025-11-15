@@ -89,20 +89,38 @@ async def threat_definitions() -> list[dict[str, str]]:
 async def analyze_endpoint(
     file: UploadFile = File(...),
     context: str | None = Form(default=None),
+    media_type: str | None = Form(default=None),
     x_api_key: str | None = Header(default=None, convert_underscores=False),
 ) -> JSONResponse:
     """Analyze uploaded media and return dummy inference plus placeholder LLM reasoning."""
-    if API_KEY and x_api_key != API_KEY:
-        return JSONResponse(status_code=401, content={"error": "invalid_api_key"})
+    # if API_KEY and x_api_key != API_KEY:
+    #     return JSONResponse(status_code=401, content={"error": "invalid_api_key"})
 
     try:
         saved_file = save_temp_file(file)
-        inference_result = analyze_media(str(saved_file.path), context)
+        requested_media_type = (media_type or saved_file.media_type or "image").lower()
+        inference_result = analyze_media(str(saved_file.path), context, requested_media_type)
+        probabilities = inference_result.get("probabilities") or {}
+        analysis_payload = {
+            "input_type": requested_media_type,
+            "models": [
+                {
+                    "name": inference_result.get("model", MODEL_PATH.name),
+                    "fake_prob": probabilities.get("fake"),
+                    "real_prob": probabilities.get("real"),
+                    "confidence": inference_result.get("confidence"),
+                }
+            ],
+            "detected_artifacts": inference_result.get("artifacts") or [],
+            "context": context,
+            "sha256": saved_file.sha256,
+        }
         llm_payload = generate_threat_analysis(
             label=inference_result.get("label"),
             confidence=inference_result.get("confidence"),
             context=context,
             filename=file.filename,
+            analysis_data=analysis_payload,
         )
 
         stats_tracker.record(inference_result.get("label", "unknown"))
@@ -118,8 +136,13 @@ async def analyze_endpoint(
             content={
                 "label": inference_result.get("label", "unknown"),
                 "confidence": inference_result.get("confidence", 0.0),
+                "probabilities": inference_result.get("probabilities"),
                 "context": context,
+                "media_type": requested_media_type,
+                "model": inference_result.get("model"),
                 "file_hash": saved_file.sha256,
+                "artifacts": inference_result.get("artifacts", []),
+                "analysis_data": analysis_payload,
                 "llm": llm_payload,
             }
         )

@@ -1,119 +1,91 @@
 import React, { useRef, useState } from 'react';
 
+const SUPPORTED_IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
+const SUPPORTED_VIDEO_TYPES = ['mp4', 'mov', 'avi', 'mkv', 'webm'];
+
+const ICONS = {
+  image: '📷',
+  video: '🎬',
+};
+
 const FileUpload = ({ onFileUpload }) => {
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const [selectedType, setSelectedType] = useState(null);
 
-  const validateFile = (file, expectedType) => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'];
-    const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
-    
-    const extension = file.name.split('.').pop().toLowerCase();
-    
-    if (expectedType === 'image' && imageExtensions.includes(extension)) {
-      return { isValid: true, type: 'image' };
-    } else if (expectedType === 'video' && videoExtensions.includes(extension)) {
-      return { isValid: true, type: 'video' };
-    } else {
-      const supportedTypes = expectedType === 'image' 
-        ? 'JPG, JPEG, PNG, GIF, BMP, WebP' 
-        : 'MP4, AVI, MOV, WMV, WebM, MKV';
-      return { 
-        isValid: false, 
-        message: `Please upload only ${expectedType} files (${supportedTypes})` 
-      };
-    }
-  };
-
   const handleFileSelect = (event, type) => {
-    const file = event.target.files[0];
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    const validation = validateFile(file, type);
-    if (validation.isValid) {
-      setSelectedType(type);
-      onFileUpload(file, type);
-    } else {
-      alert(validation.message);
+    const extension = file.name.split('.').pop().toLowerCase();
+    const allowed = type === 'video' ? SUPPORTED_VIDEO_TYPES : SUPPORTED_IMAGE_TYPES;
+    if (!allowed.includes(extension)) {
+      alert(`Unsupported ${type} format. Supported: ${allowed.join(', ').toUpperCase()}`);
       event.target.value = '';
+      return;
+    }
+
+    setSelectedType(type);
+    onFileUpload(file, type);
+  };
+
+  const openFileDialog = (type) => {
+    if (type === 'video') {
+      videoInputRef.current?.click();
+    } else {
+      imageInputRef.current?.click();
     }
   };
 
-  const handleButtonClick = (type) => {
-    if (type === 'image') {
-      imageInputRef.current?.click();
-    } else {
-      videoInputRef.current?.click();
-    }
-  };
+  const renderCard = (type, title, description, fileInfo, inputProps) => (
+    <div className={`vertical-upload-card ${selectedType === type ? 'card-selected' : ''}`}>
+      <div className="card-content-wrapper" onClick={() => openFileDialog(type)}>
+        <div className="card-icon" aria-hidden="true">
+          <span>{ICONS[type]}</span>
+        </div>
+        <div className="card-text">
+          <h4>{title}</h4>
+          <p>{description}</p>
+          <div className="file-info">
+            <span className="file-types">{fileInfo.types}</span>
+            <span className="file-size">{fileInfo.size}</span>
+          </div>
+        </div>
+      </div>
+      <button className="vertical-upload-btn" onClick={() => openFileDialog(type)}>
+        {inputProps.buttonLabel}
+      </button>
+      <input
+        ref={type === 'video' ? videoInputRef : imageInputRef}
+        type="file"
+        accept={inputProps.accept}
+        onChange={(event) => handleFileSelect(event, type)}
+        style={{ display: 'none' }}
+      />
+    </div>
+  );
 
   return (
     <div className="vertical-upload-container">
-      {/* Image Upload Card */}
-      <div 
-        className={`vertical-upload-card ${selectedType === 'image' ? 'card-selected' : ''}`}
-        onClick={() => handleButtonClick('image')}
-      >
-        <div className="card-content-wrapper">
-          <div className="card-icon">
-            <span>🖼️</span>
-          </div>
-          <div className="card-text">
-            <h4>Upload Image</h4>
-            <p>Analyze images for deepfake detection with advanced AI algorithms</p>
-            <div className="file-info">
-              <span className="file-types">JPG, PNG, GIF, WebP</span>
-              <span className="file-size">Max 50MB</span>
-            </div>
-          </div>
-        </div>
-        <button className="vertical-upload-btn">
-          Choose Image
-        </button>
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept=".jpg,.jpeg,.png,.gif,.bmp,.webp"
-          onChange={(e) => handleFileSelect(e, 'image')}
-          style={{ display: 'none' }}
-        />
-      </div>
+      {renderCard(
+        'image',
+        'Upload Image',
+        'Detect deepfake manipulation with the on-device EfficientNetV2 model.',
+        { types: 'JPG, JPEG, PNG, GIF, BMP, WebP', size: 'Max 200MB' },
+        { accept: '.jpg,.jpeg,.png,.gif,.bmp,.webp', buttonLabel: 'Choose Image' }
+      )}
 
-      {/* Divider */}
       <div className="upload-divider">
         <span>OR</span>
       </div>
 
-      {/* Video Upload Card */}
-      <div 
-        className={`vertical-upload-card ${selectedType === 'video' ? 'card-selected' : ''}`}
-        onClick={() => handleButtonClick('video')}
-      >
-        <div className="card-content-wrapper">
-          <div className="card-icon">
-            <span>🎥</span>
-          </div>
-          <div className="card-text">
-            <h4>Upload Video</h4>
-            <p>Detect deepfake manipulations in video content with frame-by-frame analysis</p>
-            <div className="file-info">
-              <span className="file-types">MP4, MOV, AVI, WebM</span>
-              <span className="file-size">Max 100MB</span>
-            </div>
-          </div>
-        </div>
-        <button className="vertical-upload-btn">
-          Choose Video
-        </button>
-        <input
-          ref={videoInputRef}
-          type="file"
-          accept=".mp4,.avi,.mov,.wmv,.webm,.mkv"
-          onChange={(e) => handleFileSelect(e, 'video')}
-          style={{ display: 'none' }}
-        />
-      </div>
+      {renderCard(
+        'video',
+        'Upload Video',
+        'Experimental support: frames are sampled and fed through EfficientNetV2.',
+        { types: 'MP4, MOV, AVI, MKV, WebM', size: 'Max 200MB' },
+        { accept: '.mp4,.mov,.avi,.mkv,.webm', buttonLabel: 'Choose Video' }
+      )}
     </div>
   );
 };
