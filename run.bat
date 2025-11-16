@@ -16,6 +16,7 @@ REM ---------------------------------------------------------------------------
 set "PROJECT_ROOT=%~dp0"
 set "MODE=%~1"
 set "FRONTEND_DIR=%PROJECT_ROOT%frontend"
+set "OLLAMA_STATUS=skipped"
 
 cd /d "%PROJECT_ROOT%" || goto :fatal
 
@@ -23,6 +24,7 @@ call :banner "Deepfake Detection Full Stack"
 call :prepare_environment || goto :fatal
 call :start_backend || goto :fatal
 call :start_ollama
+call :launch_wsl_ollama
 
 if /I "%MODE%"=="backend-only" goto :summary
 
@@ -35,7 +37,13 @@ echo.
 echo ============================================================
 echo  Services launching (check new terminal windows):
 echo     - deepfake-backend   : FastAPI at http://127.0.0.1:8000
-echo     - deepfake-ollama    : local LLM (if CLI available)
+if /I "%OLLAMA_STATUS%"=="running" (
+    echo     - deepfake-ollama    : local LLM window (deepfake-ollama)
+) else if /I "%OLLAMA_STATUS%"=="missing" (
+    echo     - deepfake-ollama    : skipped (Ollama CLI not detected)
+) else (
+    echo     - deepfake-ollama    : skipped (%OLLAMA_STATUS%)
+)
 if /I not "%MODE%"=="backend-only" (
     echo     - deepfake-frontend : Electron shell (serving frontend/build)
 )
@@ -98,13 +106,17 @@ start "deepfake-backend" cmd /K "cd /d ""%PROJECT_ROOT%"" && call .venv\Scripts\
 exit /b 0
 
 :start_ollama
+set "OLLAMA_STATUS=missing"
 where ollama >nul 2>&1 || (
     echo [Ollama] CLI not detected. Install from https://ollama.com/download to enable local reasoning.
+    echo [Ollama] No ubuntu/ollama terminal window will open until the CLI is installed.
     exit /b 0
 )
+set "OLLAMA_STATUS=checking"
 call :ensure_llama_model
 echo [Ollama] Starting ollama serve...
 start "deepfake-ollama" cmd /K "cd /d ""%PROJECT_ROOT%"" && ollama serve"
+set "OLLAMA_STATUS=running"
 exit /b 0
 
 :ensure_llama_model
@@ -151,4 +163,37 @@ exit /b 0
 :start_frontend_electron
 echo [Frontend] Launching Electron shell...
 start "deepfake-frontend" cmd /K "cd /d ""%FRONTEND_DIR%"" && npm run electron:shell"
+exit /b 0
+
+:launch_wsl_ollama
+set "WSL_PULL_STARTED="
+if exist "%SystemRoot%\System32\wsl.exe" (
+    set "WSL_DISTRO="
+    for /f "delims=" %%D in ('"%SystemRoot%\System32\wsl.exe" -l -q 2^>nul') do (
+        echo %%D | findstr /I "ubuntu" >nul 2>&1
+        if not errorlevel 1 (
+            set "WSL_DISTRO=%%D"
+            goto :wsl_found
+        )
+    )
+    if not defined WSL_DISTRO (
+        for /f "delims=" %%D in ('"%SystemRoot%\System32\wsl.exe" -l -q 2^>nul') do (
+            if not defined WSL_DISTRO set "WSL_DISTRO=%%D"
+        )
+    )
+    if defined WSL_DISTRO (
+        echo [Ollama][WSL] Opening Ubuntu session to pull llama3:8b...
+        start "ubuntu-ollama-pull" "%SystemRoot%\System32\wsl.exe" -d "%WSL_DISTRO%" /bin/bash -lc "ollama pull llama3:8b; echo; echo 'WSL session ready. Leave this open to reuse the llama3 cache.'; exec bash"
+        set "WSL_PULL_STARTED=1"
+        goto :wsl_exit
+    ) else (
+        echo [Ollama][WSL] No Linux distributions registered. Attempting native Windows pull instead.
+    )
+) else (
+    echo [Ollama][WSL] Windows Subsystem for Linux not detected. Attempting native Windows pull instead.
+)
+:wsl_exit
+if defined WSL_PULL_STARTED exit /b 0
+echo [Ollama] Opening Windows shell to pull llama3:8b...
+start "ollama-pull" cmd /K "cd /d ""%PROJECT_ROOT%"" && ollama pull llama3:8b && echo( && echo Pull complete. Leave this window open to monitor ollama downloads."
 exit /b 0

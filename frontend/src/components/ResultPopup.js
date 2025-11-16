@@ -5,7 +5,7 @@ const ResultPopup = ({ result, mediaType, onClose }) => {
   const isFake = label === 'fake';
   const isReal = label === 'real';
   const confidencePercent = Math.min(100, Math.max(0, (result?.confidence || 0) * 100));
-  const probabilities = result?.probabilities;
+  const probabilities = result?.probabilities || {};
   const riskLevel = result?.riskLevel ? result.riskLevel.toLowerCase() : null;
   const riskLabel = riskLevel ? riskLevel.toUpperCase() : null;
   const riskClass = riskLevel ? `risk-pill-${riskLevel}` : '';
@@ -46,7 +46,7 @@ const ResultPopup = ({ result, mediaType, onClose }) => {
               style={{ width: `${confidencePercent}%` }}
             ></div>
           </div>
-          {probabilities && (
+          {probabilities.fake != null && probabilities.real != null && (
             <p className="confidence-details">
               Fake: {(probabilities.fake * 100).toFixed(1)}% · Real: {(probabilities.real * 100).toFixed(1)}%
             </p>

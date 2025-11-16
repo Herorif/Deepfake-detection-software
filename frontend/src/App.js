@@ -29,6 +29,58 @@ const GUIDELINES = [
   },
 ];
 
+const DEFAULT_SUMMARY = 'Model verdict complete. Awaiting additional reasoning from Ollama.';
+
+const LLM_VERDICT_MAP = {
+  likely_fake: 'fake',
+  likely_real: 'real',
+  uncertain: 'unknown',
+};
+
+const deriveLabel = (rawLabel, llmVerdict) => {
+  const normalized = (rawLabel || '').toLowerCase();
+  if (normalized === 'fake' || normalized === 'real') {
+    return normalized;
+  }
+  const verdict = (llmVerdict || '').toLowerCase();
+  return LLM_VERDICT_MAP[verdict] || 'unknown';
+};
+
+const deriveConfidence = (label, apiResult) => {
+  if (typeof apiResult?.confidence === 'number' && !Number.isNaN(apiResult.confidence)) {
+    return apiResult.confidence;
+  }
+  const probs = apiResult?.probabilities || {};
+  if (label === 'fake' && typeof probs.fake === 'number') {
+    return probs.fake;
+  }
+  if (label === 'real' && typeof probs.real === 'number') {
+    return probs.real;
+  }
+  return 0;
+};
+
+const deriveRiskLevel = (label, llmRisk) => {
+  if (llmRisk) {
+    return llmRisk.toLowerCase();
+  }
+  if (label === 'fake') return 'high';
+  if (label === 'real') return 'low';
+  return 'medium';
+};
+
+const deriveScoreSummary = (llm, probabilities) => {
+  if (llm?.score_summary) {
+    return llm.score_summary;
+  }
+  if (probabilities?.fake != null && probabilities?.real != null) {
+    return `Detector probabilities — Fake: ${(probabilities.fake * 100).toFixed(1)}% vs Real: ${(
+      probabilities.real * 100
+    ).toFixed(1)}%`;
+  }
+  return null;
+};
+
 function App() {
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploadedMediaType, setUploadedMediaType] = useState(null);
@@ -45,6 +97,35 @@ function App() {
     setErrorMessage(null);
   };
 
+  const buildAnalysisResult = (apiResult) => {
+    const llm = apiResult?.llm || {};
+    const probabilities = apiResult?.probabilities || {};
+    const label = deriveLabel(apiResult?.label, llm.final_verdict);
+    const confidence = deriveConfidence(label, apiResult);
+    const riskLevel = deriveRiskLevel(label, llm.risk_level);
+    const llmAvailable = llm.ollama_available !== false;
+    const summary = llmAvailable
+      ? llm.overall_explanation || llm.summary || DEFAULT_SUMMARY
+      : 'Ollama reasoning unavailable.';
+
+    return {
+      label,
+      confidence,
+      probabilities,
+      fileHash: apiResult.file_hash,
+      model: apiResult.model,
+      mediaType: apiResult.media_type || uploadedMediaType || 'image',
+      artifacts: apiResult.artifacts || [],
+      summary,
+      attackVectors: llm.attack_vectors ?? [],
+      recommendations: llm.recommendations ?? [],
+      riskLevel,
+      finalVerdict: llm.final_verdict || label,
+      scoreSummary: deriveScoreSummary(llm, probabilities),
+      llm,
+    };
+  };
+
   const handleVerify = async () => {
     if (!uploadedFile) {
       alert('Please upload media before running analysis.');
@@ -58,38 +139,23 @@ function App() {
       const formData = new FormData();
       formData.append('file', uploadedFile);
       formData.append('media_type', uploadedMediaType || 'image');
-      const result = await analyzeMedia(formData);
-      const llm = result?.llm || {};
-      setAnalysisResult({
-        label: result.label,
-        confidence: result.confidence,
-        probabilities: result.probabilities,
-        fileHash: result.file_hash,
-        model: result.model,
-        mediaType: result.media_type || uploadedMediaType || 'image',
-        artifacts: result.artifacts,
-        summary: llm.overall_explanation || llm.summary,
-        attackVectors: llm.attack_vectors ?? [],
-        recommendations: llm.recommendations ?? [],
-        riskLevel: llm.risk_level,
-        finalVerdict: llm.final_verdict,
-        scoreSummary: llm.score_summary,
-        llm,
-      });
+      const apiResult = await analyzeMedia(formData);
+      setAnalysisResult(buildAnalysisResult(apiResult));
     } catch (error) {
       console.error('Verification failed:', error);
-      const message =
-        error.response?.data?.error || 'Verification failed. Ensure the backend is running and try again.';
+      const message = error.response?.data?.error || 'Verification failed. Ensure the backend is running and try again.';
       setErrorMessage(message);
       setAnalysisResult({
         label: 'unknown',
         confidence: 0,
-        probabilities: undefined,
+        probabilities: {},
         summary: message,
         attackVectors: [],
         recommendations: [],
         fileHash: null,
         mediaType: uploadedMediaType || 'image',
+        riskLevel: 'medium',
+        finalVerdict: 'uncertain',
       });
     } finally {
       setIsLoading(false);
@@ -227,7 +293,7 @@ function App() {
             <div className="guidelines-content">
               {GUIDELINES.map((item) => (
                 <div className="guideline-item" key={item.title}>
-                  <span className="check-icon">•</span>
+                  <span className="check-icon">✓</span>
                   <span>
                     <strong>{item.title}:</strong> {item.text}
                   </span>
